@@ -1,5 +1,6 @@
 import random
 from discord_webhook import DiscordWebhook, DiscordEmbed
+from log import Log
 
 global lastSent
 global lastHook
@@ -48,7 +49,7 @@ def post_with_fields(subject, webhook_url, message, routeName, carrierStage, mai
         lastSent = webhook.execute()
         lastHook = webhook
     except:
-        print("Discord webhook not set up")
+        Log.log("Discord webhook not set up")
 
 
 def update_fields(carrierStage, maintenanceStage):
@@ -103,4 +104,4 @@ def update_fields(carrierStage, maintenanceStage):
     
         lastHook.edit(lastSent)
     except:
-        print("Discord webhook not set up")
+        Log.log("Discord webhook not set up")

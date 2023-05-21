@@ -31,17 +31,18 @@ import journalwatcher
 from discordhandler import post_to_discord, post_with_fields, update_fields
 from screenreader import time_until_jump
 
-import pygetwindow as gw
+from gamewindow import GameWindow
+from log import Log
 
 user32 = ctypes.windll.user32
 ctypes.windll.shcore.SetProcessDpiAwareness(2)
 
+# produces debug output for keystrokes etc.
+Log.enable = False
 # ----Options----
 # How many up presses to reach tritium in carrier hold:
 global tritium_slot
 tritium_slot = 0
-# Time to refill trit
-hold_time = 10
 
 global route_file
 route_file = ""
@@ -56,16 +57,9 @@ journal_directory = ""
 
 
 # Get the screen resolution
-screen_width, screen_height = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-
-# Get the ratio of the screen resolution to 1920x1080
-global width_ratio
-global height_ratio
-width_ratio = screen_width / 1920
-height_ratio = screen_height / 1080
-
-print("Screen resolution: " + str(screen_width) + "x" + str(screen_height))
-
+ELITE = GameWindow(window_name)
+ELITE.activate()
+print("Screen resolution: " + ELITE.toString())
 
 
 def load_settings():
@@ -81,18 +75,18 @@ def load_settings():
         try:
             for line in a:
                 if line.startswith("webhook_url="):
-                    print(line)
+                    Log.log(line)
                     webhook_url = line.split("=")[1]
                 if line.startswith("journal_directory="):
-                    print(line)
+                    Log.log(line)
                     journal_directory = line.split("=")[1]
                     latest_journal()
 
                 if line.startswith("tritium_slot="):
-                    print(line)
+                    Log.log(line)
                     tritium_slot = int(line.split("=")[1])
                 if line.startswith("route_file="):
-                    print(line)
+                    Log.log(line)
                     route_file = line.split("=")[1]
         except Exception as e:
             print(e)
@@ -136,25 +130,36 @@ def latest_journal():
 def slight_random_time(time):
     return random.random() + time
 
+def winactivate():
+    ELITE.activate()
+    time.sleep(0.05)
+
 
 def follow_button_sequence(sequence_name):
     sequence = open("sequences/" + sequence_name, "r").read().split("\n")
+    Log.log(sequence_name)
 
     for line in sequence:
         if line.__contains__(":"):
+            winactivate()
             pydirectinput.keyDown(line.split(":")[0])
+            Log.log(line)
             time.sleep(slight_random_time(int(line.split(":")[1])))
+            winactivate()
             pydirectinput.keyUp(line.split(":")[0])
         else:
             wait_time = 0.1
             key = line
 
             if line.__contains__("-"):
-                wait_time = int(line.split("-")[1])
+                wait_time = int(line.split("-")[1]) * 2
                 key = line.split("-")[0]
 
+            Log.log(line)
+            winactivate()
             pydirectinput.press(key)
-            time.sleep(slight_random_time(wait_time))
+            time.sleep(slight_random_time(wait_time) / 2)
+    Log.log("Done sequence " + sequence_name)
 
 
 def restock_tritium():
@@ -163,8 +168,8 @@ def restock_tritium():
         follow_button_sequence("restock_nav_1.txt")
 
         for i in range(tritium_slot):
+            winactivate()
             pydirectinput.press('w')
-            time.sleep(slight_random_time(0.1))
 
         follow_button_sequence("restock_nav_2.txt")
 
@@ -172,8 +177,9 @@ def restock_tritium():
 
 
 def jump_to_system(system_name):
-    global width_ratio
-    global height_ratio
+
+    winactivate()
+
     if sys.argv[1] == "--manual":
         # Manual jumping
         pyperclip.copy(system_name.lower())
@@ -182,21 +188,20 @@ def jump_to_system(system_name):
         while journalwatcher.last_carrier_request() != system_name:
             time.sleep(1)
 
-        timeToJump = time_until_jump(width_ratio, height_ratio)
+        timeToJump = time_until_jump(ELITE.ratio_horiz, ELITE.ratio_vert, ELITE.inner_window_left, ELITE.inner_window_top)
+
         print(timeToJump.strip())
 
         failCount = 0
 
         while len(timeToJump.split(':')) == 1:
             print("Trying again... (" + str(failCount) + ")")
-            timeToJump = time_until_jump(width_ratio, height_ratio)
+            timeToJump = time_until_jump(ELITE.ratio_horiz, ELITE.ratio_vert, ELITE.inner_window_left, ELITE.inner_window_top)
             print(timeToJump.strip())
             failCount += 1
 
         time.sleep(6)
-        pydirectinput.press('backspace')
-        time.sleep(slight_random_time(0.1))
-        pydirectinput.press('backspace')
+        follow_button_sequence("back_sequence.txt")
 
         print("alert:It is now safe to use your keyboard and mouse.")
 
@@ -204,35 +209,46 @@ def jump_to_system(system_name):
 
     follow_button_sequence("jump_nav_1.txt")
 
-    pyautogui.moveTo(921*width_ratio, 115*height_ratio)
-    time.sleep(slight_random_time(0.1))
-    pyautogui.moveTo(930*width_ratio, 115*height_ratio)
-    time.sleep(slight_random_time(0.1))
-    pydirectinput.press('space')
+    # move and click to search box
+    pyautogui.moveTo(ELITE.inner_window_left + 921*ELITE.ratio_horiz, ELITE.inner_window_top + 126*ELITE.ratio_vert, 1)
+    winactivate()
+    pyautogui.click()
+    pyautogui.mouseUp()
+
     pyperclip.copy(system_name.lower())
+    Log.log(system_name.lower())
+
+    # paste into the box
+    winactivate()
     time.sleep(slight_random_time(1.0))
     pydirectinput.keyDown("ctrl")
     time.sleep(slight_random_time(0.1))
     pydirectinput.press("v")
     time.sleep(slight_random_time(0.1))
     pydirectinput.keyUp("ctrl")
-    time.sleep(slight_random_time(3.0))
-    # pydirectinput.press('down')
-    pyautogui.moveTo(930*width_ratio, 150*height_ratio)
-    time.sleep(slight_random_time(0.1))
-    pydirectinput.press('space')
-    time.sleep(slight_random_time(0.1))
-    pyautogui.moveTo(1496*width_ratio, 422*height_ratio)
-    time.sleep(slight_random_time(0.1))
-    pydirectinput.press('space')
+    time.sleep(slight_random_time(2.0))
+
+    # click to the first match result
+    pyautogui.moveTo(ELITE.inner_window_left + 930*ELITE.ratio_horiz, ELITE.inner_window_top + 150*ELITE.ratio_vert, 0.5)
+    winactivate()
+    pyautogui.click()
+    pyautogui.mouseUp()
+
+    # move and click to Set Destination
+    pyautogui.moveTo(ELITE.inner_window_left + 1496*ELITE.ratio_horiz, ELITE.inner_window_top + 412*ELITE.ratio_vert, 1)
+    winactivate()
+    pyautogui.click()
+    pyautogui.mouseUp()
 
     time.sleep(6)
 
     # Navigate carrier menu
+    winactivate()
     pydirectinput.press('s')
     time.sleep(slight_random_time(0.1))
     pydirectinput.press('space')
 
+    # check journal whether jump has been ever planned
     if journalwatcher.last_carrier_request() != system_name:
         print(journalwatcher.lastCarrierRequest)
         print(system_name)
@@ -241,22 +257,23 @@ def jump_to_system(system_name):
         follow_button_sequence("jump_fail.txt")
         return 0
 
-    timeToJump = time_until_jump(width_ratio, height_ratio)
+    # read the timer on the Carrier screen
+    timeToJump = time_until_jump(ELITE.ratio_horiz, ELITE.ratio_vert, ELITE.inner_window_left, ELITE.inner_window_top)
     print(timeToJump.strip())
 
     failCount = 0
 
     while len(timeToJump.split(':')) == 1:
-        print("Trying again... (" + str(failCount) + ")")
-        timeToJump = time_until_jump(width_ratio, height_ratio)
+        print("Trying again to get time... (" + str(failCount) + ")")
+        timeToJump = time_until_jump(ELITE.ratio_horiz, ELITE.ratio_vert, ELITE.inner_window_left, ELITE.inner_window_top)
         print(timeToJump.strip())
         failCount += 1
 
     time.sleep(6)
-    pydirectinput.press('backspace')
-    time.sleep(slight_random_time(0.1))
-    pydirectinput.press('backspace')
+    winactivate()
+    follow_button_sequence("back_sequence.txt")
 
+    # successfully read the time-to-the-jump
     return timeToJump.strip()
 
 
@@ -272,7 +289,7 @@ def main_loop():
 
     load_settings()
 
-    time.sleep(5)
+    time.sleep(1)
 
     latestJournal = latest_journal()
 
@@ -282,8 +299,7 @@ def main_loop():
     th = threading.Thread(target=process_journal, args=(latestJournal,))
     th.start()
 
-    # win = gw.getWindowsWithTitle(window_name)[0]
-    # win.activate()
+    winactivate()
 
     lineNo = 0
     saved = False
@@ -296,9 +312,10 @@ def main_loop():
         saved = True
 
     print("Beginning in 5...")
-    time.sleep(5)
+    time.sleep(2)
     # print("Stocking initial tritium...")
     # restock_tritium()
+    follow_button_sequence("back_sequence.txt")
 
     routeFile = open(route_file, "r")
     route = routeFile.read()
@@ -335,7 +352,7 @@ def main_loop():
 
         line = a[i]
 
-        # win.activate()
+        winactivate()
         time.sleep(3)
 
         print("Next stop: " + line)
@@ -349,9 +366,10 @@ def main_loop():
             while timeToJump == 0: timeToJump = jump_to_system(line)
             print("Navigation complete. Jump occurs in " + timeToJump + ". Counting down...")
 
-            hours = int(timeToJump.split(':')[0])
-            minutes = int(timeToJump.split(':')[1])
-            seconds = int(timeToJump.split(':')[2])
+            #hours = int(timeToJump.split(':')[0])
+            hours = 0
+            minutes = int(timeToJump.split(':')[0])
+            seconds = int(timeToJump.split(':')[1])
 
             totalTime = (hours * 3600) + (minutes * 60) + seconds - 12
 
@@ -464,7 +482,7 @@ def main_loop():
 
                 elif totalTime == 150:
                     print("Restocking tritium...")
-                    # win.activate()
+                    winactivate()
                     time.sleep(2)
                     th = threading.Thread(target=restock_tritium)
                     th.start()

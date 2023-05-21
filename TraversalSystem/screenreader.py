@@ -7,11 +7,11 @@ pytesseract.pytesseract.tesseract_cmd = "tesseract\\tesseract.exe"
 
 
 def text_in_box(x1, y1, x2, y2, skipProcess=False):
-    try:
-        os.remove("ss.png")
-        os.remove("ss_processed.png")
-    except FileNotFoundError:
-        print("File doesn't exist")
+    #try:
+    #    os.remove("ss.png")
+    #    os.remove("ss_processed.png")
+    #except FileNotFoundError:
+    #    print("File doesn't exist")
 
     im = ImageGrab.grab(bbox=(x1, y1, x2, y2))
 
@@ -36,5 +36,17 @@ def text_in_box(x1, y1, x2, y2, skipProcess=False):
     return pytesseract.image_to_string(tessImage, config=custom_config)
 
 
-def time_until_jump(width_ratio, height_ratio):
-    return text_in_box(int(1478 * width_ratio), int(1008 * height_ratio), int(1554 * width_ratio), int(1027 * height_ratio), True)
+def time_until_jump(width_ratio, height_ratio, left_offs, top_offs):
+    x1 = int(1497 * width_ratio + left_offs)
+    y1 = int(1007 * height_ratio + top_offs)
+    x2 = int(1555 * width_ratio + left_offs)
+    y2 = int(1027 * height_ratio + top_offs)
+
+    #print(left_offs, top_offs)
+    #print("res:"+str(x2 - x1) + "x" + str(y2 - y1))
+
+    #print("x1:" + str(x1))
+    #print("y1:" + str(y1))
+    #print("x2:" + str(x2))
+    #print("y2:" + str(y2))
+    return text_in_box(x1,y1,x2,y2,True)

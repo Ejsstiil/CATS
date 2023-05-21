@@ -10,11 +10,10 @@ q
 space-5
 s
 s
-space
-space
-w
-space
+space-1
+space-1
+w-1
+space-1
 backspace
-s
-space
+backspace
 backspace

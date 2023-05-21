@@ -1,12 +1,5 @@
 backspace
 backspace
 backspace
-4
-e
-e
-e
-e
-d
-w
-d
-space
+backspace
+backspace

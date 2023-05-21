@@ -1,3 +1,13 @@
+backspace
+backspace
+backspace
+s
+s
+s
+s
+s
+w
+w
 space-5
 d
 s
@@ -5,4 +15,4 @@ d
 space-6
 s
 space
-space-4
+space-5
